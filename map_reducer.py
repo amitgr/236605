@@ -1,4 +1,6 @@
 import csv
+from random import Random
+
 from common import Triplet
 import re
 
@@ -14,6 +16,7 @@ def _is_gtin_valid(gtin):
 
 
 def TripletsFromSqlDump():
+  r = Random(7)
   with open('E:\\Academic\\data_science\\sql_dump.txt', 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter='\t')
     d = {}
@@ -39,8 +42,13 @@ def TripletsFromSqlDump():
         continue
       if len(largest_2) > 1 and values[largest] == values[largest_2[1]]:
         continue
-      for triplet in values.keys():
-        yield Triplet(MPN=triplet.MPN, GTIN=triplet.GTIN, Brand=triplet.Brand, result=triplet == largest)
+      triplet = largest
+      if r.randint(0, 5) == 0 or len(values) == 1:
+        triplet = largest
+      else:
+        while triplet == largest:
+          triplet = r.choice(list(values.keys()))
+      yield Triplet(MPN=triplet.MPN, GTIN=triplet.GTIN, Brand=triplet.Brand, result=triplet == largest)
 
 
 def main():
