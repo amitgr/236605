@@ -14,10 +14,16 @@ def _is_mpn_valid(mpn):
 def _is_gtin_valid(gtin):
   return _regex.match(gtin)
 
+# Parameters
+learning_rate = 0.01
+training_epochs = 25
+batch_size = 100
+display_step = 1
+
 
 def TripletsFromSqlDump():
   r = Random(7)
-  with open('E:\\Academic\\data_science\\sql_dump.txt', 'r') as csvfile:
+  with open('sql_dump.txt', 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter='\t')
     d = {}
     for line in reader:
