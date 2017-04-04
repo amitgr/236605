@@ -22,7 +22,11 @@ class Triplet (nt('Triplet', ['GTIN', 'MPN', 'Brand', 'result'])):
     return Triplet(GTIN=gtin, MPN=mpn, Brand=brand, result=False)
 
   def ToNumericFeatures(self):
-    return self.MPN.zfill(50)
+    gtin = self.GTIN.zfill(14)
+    result_value = [int(x) for x in gtin]
+    mpn = self.MPN.zfill(50)
+    result_value.extend([ord(x) for x in mpn])
+    return result_value
 
 
 def TripletGenerator(csvfile):
