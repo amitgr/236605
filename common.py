@@ -1,8 +1,10 @@
 import csv
+import functools
+
+import time
 from collections import namedtuple as nt
 from itertools import groupby
 from random import Random
-
 
 class Triplet (nt('Triplet', ['GTIN', 'MPN', 'Brand', 'result'])):
   def ArtificialFalse(self):
@@ -46,3 +48,17 @@ def TripletGenerator(csvfile):
       yield Triplet(GTIN=gtin, MPN=mpn, Brand=brand, result=result)
     except:
       pass
+
+
+NUMBER_OF_GTIN_DIGITS = 14
+NUMBER_OF_MPN_CHARACTERS = 50
+
+def timeit(func):
+  @functools.wraps(func)
+  def newfunc(*args, **kwargs):
+    startTime = time.time()
+    func(*args, **kwargs)
+    elapsedTime = time.time() - startTime
+    print('---function [{}] finished in {} ms'.format(
+      func.__name__, int(elapsedTime * 1000)))
+  return newfunc
