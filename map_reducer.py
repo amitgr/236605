@@ -55,6 +55,8 @@ def TripletsFromSqlDump():
         while triplet == largest:
           triplet = r.choice(list(values.keys()))
       yield Triplet(MPN=triplet.MPN, GTIN=triplet.GTIN, Brand=triplet.Brand, result=triplet == largest)
+      # for triplet in list(values.keys()):
+      #   yield Triplet(MPN=triplet.MPN, GTIN=triplet.GTIN, Brand=triplet.Brand, result=triplet == largest)
 
 
 def main():
