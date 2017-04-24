@@ -108,8 +108,8 @@ def SvmLearnAndEvaluate(train_set):
     model = svm.SVC(kernel=kernel, cache_size=1000, class_weight={True: 1, False: negative_weight}, C=c, gamma=gama, coef0=coef)
     precision, recall = TrainModelAndEvaluate(train_set, model)
     if (precision, recall) != (0, 0):
-      dict[(c, gama)] = dict.get((c, gama), [])
-      dict[(c, gama)].append((precision, recall))
+      dict[(c, gama, coef)] = dict.get((c, gama, coef), [])
+      dict[(c, gama, coef)].append((precision, recall))
   return dict
 
 def NNLearnAndEvaluate(train_set):
