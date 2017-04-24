@@ -87,15 +87,25 @@ def LogisticRegressionLearnAndEvaluate(train_set):
 def SvmLearnAndEvaluate(train_set):
   from sklearn import svm
   kernels = ['linear', 'poly', 'rbf', 'sigmoid']
-  kernels = ['rbf']
-  #negative_weights = np.arange(start=2.3, stop=2.45, step=0.05)
-  negative_weights = np.arange(start=0.2, stop=5, step=0.1)
-  c_values = [0.1, 0.3, 1, 10, 30, 100]
-  gamas=[3, 10, 30]
+  kernels = ['sigmoid']
+
+  # first run settings:
+  negative_weights = np.arange(start=0.5, stop=4, step=0.5)
+  c_values = [0.01, 0.1, 1, 10, 100]
+  gamas = [0.01, 0.1, 1, 10, 100]
+  coefs = [-100, -10, -1, -0.1, 0.0, 0.1, 1, 10, 100]
+
+  # rbf:
+  #negative_weights = np.arange(start=0.2, stop=5, step=0.1)
+  #c_values = [0.1, 0.3, 1, 10, 30, 100]
+  #gamas=[3, 10, 30]
+  #coefs = [0.0]
+
+
   dict = {}
-  for kernel, c, gama, negative_weight in itertools.product(kernels, c_values, gamas, negative_weights):
-    print("Kernel: " + kernel, "c=", c, "gama=", gama, "Negative weight: ", negative_weight)
-    model = svm.SVC(kernel=kernel, cache_size=1000, class_weight={True: 1, False: negative_weight}, C=c, gamma=gama)
+  for kernel, c, gama, coef, negative_weight in itertools.product(kernels, c_values, gamas, coefs, negative_weights):
+    print("Kernel: " + kernel, "c=", c, "gama=", gama, "coef=", coef, "Negative weight: ", negative_weight)
+    model = svm.SVC(kernel=kernel, cache_size=1000, class_weight={True: 1, False: negative_weight}, C=c, gamma=gama, coef0=coef)
     precision, recall = TrainModelAndEvaluate(train_set, model)
     if (precision, recall) != (0, 0):
       dict[(c, gama)] = dict.get((c, gama), [])
