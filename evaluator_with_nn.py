@@ -13,7 +13,7 @@ import map_reducer
 random = Random(5)
 
 
-def TrainModelAndEvaluate(train_set, fitter):
+def TrainModelAndEvaluate(train_set, fitter, negative_weight=None):
   def ToStringFeatures(key_fn):
     hasher = FeatureHasher(input_type='string')
     raw_X = [key_fn(x) for x in train_set]
@@ -33,26 +33,18 @@ def TrainModelAndEvaluate(train_set, fitter):
   X = hstack([X, brand_features])
   # X = hstack([X, brand_features, gtin_features])
   y = [x.result for x in train_set]
+  y = np.asarray(y)
   from sklearn.preprocessing import normalize
   X = normalize(X, axis=0)
+  print(X.shape)
+  print(y.shape)
   # print(cross_val_score(fitter, X, y, cv=10))
-  predictions = cross_val_predict(fitter, X, y, cv=5)
-  confusion_matrix = {}
-  for i in range(len(predictions)):
-    if not predictions[i]:
-      if not train_set[i].result:
-        confusion_matrix['tn'] = confusion_matrix.get('tn', 0) + 1
-      else:
-        confusion_matrix['fn'] = confusion_matrix.get('fn', 0) + 1
-    else:
-      if not train_set[i].result:
-        confusion_matrix['fp'] = confusion_matrix.get('fp', 0) + 1
-      else:
-        confusion_matrix['tp'] = confusion_matrix.get('tp', 0) + 1
-  tn = confusion_matrix.get('tn', 0)
-  fn = confusion_matrix.get('fn', 0)
-  tp = confusion_matrix.get('tp', 0)
-  fp = confusion_matrix.get('fp', 0)
+  negative_weights = list([1 if x.result else negative_weight for x in train_set])
+  conf_mat = common.cross_val(X, y, fitter, w=negative_weights, cv=5)
+  tn = conf_mat.tn
+  fn = conf_mat.fn
+  tp = conf_mat.tp
+  fp = conf_mat.fp
   if tn + fn < 50:
     print('Did not tag enough negative samples, only ', tn + fn)
     return 0, 0
@@ -62,7 +54,7 @@ def TrainModelAndEvaluate(train_set, fitter):
   print('Precision of negatives: ', precision)
   recall = tn / (tn + fp)
   print('Recall of negatives: ', recall)
-  return precision, recall
+  return conf_mat.nprecision(), conf_mat.nrecall()
 
 
 def LogisticRegressionLearnAndEvaluate(train_set):
@@ -112,11 +104,44 @@ def SvmLearnAndEvaluate(train_set):
       dict[(c, gama, coef)].append((precision, recall))
   return dict
 
+def SKNNLearnAndEvaluate(train_set):
+  from sklearn.neural_network import MLPClassifier
+  from sknn.mlp import Classifier, Layer
+  #alphas = [1]
+  #learning_rate_inits = [0.01, 0.1, 1, 10, 100]
+  regularization_types = ['l2']
+  negative_weights = np.arange(start=0.5, step=0.5, stop=4)
+  dict = {}
+  for layer1, layer2, negative_weight in itertools.product([5], [5], negative_weights):
+    layers = [
+      Layer(type='Linear', units=layer1),
+      Layer(type='Rectifier', units=layer2),
+      Layer(type='Softmax')
+    ]
+    batch_size = 100
+    clf = Classifier(layers=layers, batch_size=batch_size, n_iter=1)
+    precision, recall = TrainModelAndEvaluate(train_set, clf, negative_weight = negative_weight)
+    if (precision, recall) != (0, 0):
+      dict[(layer1, layer2)] = dict.get((layer1, layer2), [])
+      dict[(layer1, layer2)].append((precision, recall))
+    return dict
+
 def NNLearnAndEvaluate(train_set):
   from sklearn.neural_network import MLPClassifier
-  l2 = 1
-  clf = MLPClassifier(hidden_layer_sizes=(16, 8, 4, 2), alpha=l2, solver='lbfgs')
-  TrainModelAndEvaluate(train_set, clf)
+  #alphas = [1]
+  #learning_rate_inits = [0.01, 0.1, 1, 10, 100]
+  regularization_types = ['l2']
+  negative_weights = np.arange(start=0.5, step=0.5, stop=4)
+  dict = {}
+  for layer1, layer2, negative_weight in itertools.product([1], [1], negative_weights):
+    layers = [layer1, layer2]
+    #   Layer(type='Linear', units=layer1),
+    #   Layer(type='Rectifier', units=layer2),
+    #   Layer(type='Softmax')
+    # ]
+    batch_size = 50
+    clf = MLPClassifier(hidden_layer_sizes=(layer1, layer2), alpha=10, solver='lbfgs', learning_rate_init=0.1)
+    TrainModelAndEvaluate(train_set, clf)
 
 def GenerateFalses(triplets, number):
   return [random.choice(triplets).ArtificialFalse() for _ in range(number)]
@@ -154,7 +179,8 @@ def main():
     #NNLearnAndEvaluate(train_set)
 
     # dict = LogisticRegressionLearnAndEvaluate(train_set)
-    dict = SvmLearnAndEvaluate(train_set)
+    # dict = SvmLearnAndEvaluate(train_set)
+    dict = SKNNLearnAndEvaluate(train_set)
     print(dict)
     print('lines dump for spreadsheet:')
     for key, values in dict.items():

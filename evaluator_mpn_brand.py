@@ -4,7 +4,7 @@ from sklearn.feature_extraction import FeatureHasher
 from sklearn.model_selection import cross_val_score, cross_val_predict
 
 import common
-from common import TripletGenerator
+from common import DebletGenerator
 import itertools
 import numpy as np
 
@@ -26,12 +26,10 @@ def TrainModelAndEvaluate(train_set, fitter):
 
   random.shuffle(train_set)
   brand_features = ToStringFeatures(lambda x: x.Brand)
-  gtin_features = ToStringFeaturesTokenized(lambda x: x.GTIN)
 
   X = [x.ToNumericFeatures() for x in train_set]
   from scipy.sparse import hstack
   X = hstack([X, brand_features])
-  # X = hstack([X, brand_features, gtin_features])
   y = [x.result for x in train_set]
   from sklearn.preprocessing import normalize
   X = normalize(X, axis=0)
@@ -118,14 +116,14 @@ def NNLearnAndEvaluate(train_set):
   clf = MLPClassifier(hidden_layer_sizes=(16, 8, 4, 2), alpha=l2, solver='lbfgs')
   TrainModelAndEvaluate(train_set, clf)
 
-def GenerateFalses(triplets, number):
-  return [random.choice(triplets).ArtificialFalse() for _ in range(number)]
+def GenerateFalses(deblets, number):
+  return [random.choice(deblets).ArtificialFalse() for _ in range(number)]
 
 
-def RemoveDuplicatesKeepOrder(triplets):
+def RemoveDuplicatesKeepOrder(deblets):
   s = set()
-  # return triplets
-  for t in triplets:
+  # return deblets
+  for t in deblets:
     if not (t in s):
       s.add(t)
       yield t
@@ -139,21 +137,21 @@ def partition(pred, iterable):
 @common.timeit
 def main():
   with open('UPI Conf. Score_model data.csv', 'r') as csvfile:
-    triplets = [triplet for triplet in TripletGenerator(csvfile)]
-    # triplets = []
-    triplets.extend(list(map_reducer.TripletsFromSqlDump()))
-    triplets = list(RemoveDuplicatesKeepOrder(triplets))
-    random.shuffle(triplets)
-    TEST_SET_SIZE = len(triplets) // 8
-    test_set = triplets[0:TEST_SET_SIZE]
-    train_set = triplets[TEST_SET_SIZE:len(triplets)]
+    deblets = [deblet for deblet in DebletGenerator(csvfile)]
+    # deblets = []
+    deblets.extend(list(map_reducer.DebletsFromSqlDump()))
+    deblets = list(RemoveDuplicatesKeepOrder(deblets))
+    random.shuffle(deblets)
+    TEST_SET_SIZE = len(deblets) // 8
+    test_set = deblets[0:TEST_SET_SIZE]
+    train_set = deblets[TEST_SET_SIZE:len(deblets)]
 
     negatives, positives = partition(lambda x: x.result, train_set)
     print('neg/(neg+pos)=', len(negatives) / (len(positives) + len(negatives)))
 
     #NNLearnAndEvaluate(train_set)
 
-    # dict = LogisticRegressionLearnAndEvaluate(train_set)
+    dict = LogisticRegressionLearnAndEvaluate(train_set)
     dict = SvmLearnAndEvaluate(train_set)
     print(dict)
     print('lines dump for spreadsheet:')
