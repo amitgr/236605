@@ -91,7 +91,6 @@ def _get_perm(what, perm):
   return [what[i] for i in perm]
 def _multiply_by_weight(what, negative_weight):
   result = []
-  assert((negative_weight * 10).is_integer())
   for x in what:
     for _ in range(10 if x.result else int(negative_weight * 10)):
       result.append(x)
