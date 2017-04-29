@@ -95,6 +95,12 @@ def SvmLearnAndEvaluate(train_set):
   gamas = [0.01, 0.1, 1, 10, 100]
   coefs = [-100, -10, -1, -0.1, 0.0, 0.1, 1, 10, 100]
 
+  # sigmoid settings:
+  negative_weights = np.arange(start=0.2, stop=3, step=0.2)
+  c_values = [0.1, 1, 10, 100]
+  gamas = [0.1, 1, 10, 100]
+  coefs = [-0.1, 0.0, 0.1, 0.3, 1]
+
   # rbf:
   #negative_weights = np.arange(start=0.2, stop=5, step=0.1)
   #c_values = [0.1, 0.3, 1, 10, 30, 100]
