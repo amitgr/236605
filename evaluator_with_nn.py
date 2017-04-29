@@ -126,8 +126,12 @@ def NNLearnAndEvaluate(train_set):
   #alphas = [1]
   #learning_rate_inits = [0.01, 0.1, 1, 10, 100]
   regularization_types = ['l2']
-  negative_weights = np.arange(start=0.5, step=0.5, stop=5)
-  alphas = [3, 10, 30, 100]
+  negative_weights = np.arange(start=0.2, step=0.2, stop=5)
+  # for amit:
+  alphas = [0.1, 0.3, 1, 3]
+  # for fagfagal:
+  alphas = [10, 30, 100, 300]
+
   dict = {}
   for layer1, layer2, alpha, negative_weight in itertools.product([10], [10], alphas, negative_weights):
     print("layer1={}, layer2={},negative_weights={},alpha={}".format(layer1, layer2, negative_weight, alpha))
@@ -137,7 +141,7 @@ def NNLearnAndEvaluate(train_set):
     #   Layer(type='Softmax')
     # ]
     batch_size = 50
-    clf = MLPClassifier(hidden_layer_sizes=(layer1, layer2), alpha=alpha, solver='adam',
+    clf = MLPClassifier(hidden_layer_sizes=(layer1, layer2), alpha=alpha, solver='lbfgs',
                         learning_rate_init=0.001)
     precision, recall = TrainModelAndEvaluate(train_set, clf, negative_weight = negative_weight)
     if (precision, recall) != (0, 0):
