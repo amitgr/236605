@@ -3,16 +3,17 @@ import functools
 import numpy as np
 
 import time
-
-import sklearn
 from collections import namedtuple as nt
 from itertools import groupby
-from random import Random
+from random import Random, shuffle
+
+from sklearn.feature_extraction import FeatureHasher
 
 class Deblet(nt('Deblet', ['MPN', 'Brand', 'result'])):
   def ToNumericFeatures(self):
-    mpn = self.MPN.zfill(50)
-    return [ord(x) for x in mpn]
+    result = [ord(x) for x in (self.MPN.zfill(50))]
+    result.append(len(self.MPN))
+    return result
 
 class Triplet(nt('Triplet', ['GTIN', 'MPN', 'Brand', 'result'])):
   def ArtificialFalse(self):
@@ -80,42 +81,66 @@ class ConfusionMatrix(nt('ConfusionMatrix', ['fp', 'tp', 'fn', 'tn'])):
   def nprecision(self):
     return self.tn / (self.tn + self.fn)
 
-def cross_val(x, y, fitter, w, cv):
-  sample_size = x.shape[0]
+def _split(what, i, block_length):
+  test_start = i * block_length
+  test_end = (i + 1) * block_length
+  what_train = what[:test_start] + what[test_end:]
+  what_test = what[test_start:test_end]
+  return what_train, what_test
+def _get_perm(what, perm):
+  return [what[i] for i in perm]
+def _multiply_by_weight(what, negative_weight):
+  result = []
+  assert((negative_weight * 10).is_integer())
+  for x in what:
+    for _ in range(10 if x.result else int(negative_weight * 10)):
+      result.append(x)
+  return result
+def _to_features(what):
+  def ToStringFeatures(key_fn):
+    hasher = FeatureHasher(input_type='string')
+    raw_X = [key_fn(x) for x in what]
+    return hasher.transform(raw_X)
+
+  brand_features = ToStringFeatures(lambda x: x.Brand)
+
+  result = [x.ToNumericFeatures() for x in what]
+  from scipy.sparse import hstack
+  result = hstack([result, brand_features])
+  from sklearn.preprocessing import normalize
+  result = normalize(result, axis=0)
+  return result
+def _calc_conf_matrix(actual, expected):
+  fp = 0
+  tp = 0
+  fn = 0
+  tn = 0
+  for y_r, y_p in zip(actual, expected):
+    if not y_r and not y_p:
+      tn += 1
+    if not y_r and y_p:
+      fn += 1
+    if y_r and y_p:
+      tp += 1
+    if y_r and not y_p:
+      fp += 1
+  return ConfusionMatrix(fp=fp, tp=tp, fn=fn, tn=tn)
+
+def cross_val(train_set, fitter, negative_weight, cv):
+  train_set = train_set[:] # copy list because shuffle is in place because python is stupid
+  sample_size = len(train_set)
   block_length = sample_size // cv
-  perm = np.random.permutation(sample_size)
-  def get_perm(what):
-    return what
-  x_perm = get_perm(x)
-  y_perm = get_perm(y)
-  w_perm = get_perm(w)
+  shuffle(train_set)
+  y_perm = [x.result for x in train_set]
   y_result = []
   for i in range(cv):
-    def split():
-      test_start = i * block_length
-      test_end = (i + 1) * block_length
-      what_train = what[:test_start, test_end:]
-      what_test = what[test_start:test_end]
-      return what_train, what_test
-    _x_train, x_test, y_train, y_test, w_train, w_test = sklearn.cross_validation.
-    fitter.fit(x_train, y_train, w_train)
+    train, test = _split(train_set, i=i, block_length=block_length)
+    x_train = _multiply_by_weight(train, negative_weight)
+    x_test = _to_features(test)
+    y_train = [x.result for x in x_train]
+    fitter.fit(_to_features(x_train), y_train)
     y_result.extend(fitter.predict(x_test))
-  def calc_conf_matrix():
-    fp = 0
-    tp = 0
-    fn = 0
-    tn = 0
-    for y_r, y_p in zip(y_result, y_perm):
-      if not y_r and not y_p:
-        tn += 1
-      if not y_r and y_p:
-        fn += 1
-      if y_r and y_p:
-        tp += 1
-      if y_r and not y_p:
-        fp += 1
-    return ConfusionMatrix(fp=fp, tp=tp, fn=fn, tn=tn)
-  return calc_conf_matrix(y_result, y_perm)
+  return _calc_conf_matrix(y_result, y_perm)
 
 
 NUMBER_OF_GTIN_DIGITS = 14

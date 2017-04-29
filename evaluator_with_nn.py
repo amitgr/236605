@@ -4,7 +4,7 @@ from sklearn.feature_extraction import FeatureHasher
 from sklearn.model_selection import cross_val_score, cross_val_predict
 
 import common
-from common import TripletGenerator
+from common import TripletGenerator, DebletGenerator
 import itertools
 import numpy as np
 
@@ -13,34 +13,29 @@ import map_reducer
 random = Random(5)
 
 
-def TrainModelAndEvaluate(train_set, fitter, negative_weight=None):
-  def ToStringFeatures(key_fn):
-    hasher = FeatureHasher(input_type='string')
-    raw_X = [key_fn(x) for x in train_set]
-    return hasher.transform(raw_X)
-
+def TrainModelAndEvaluate(train_set, fitter, negative_weight):
   def ToStringFeaturesTokenized(key_fn):
     hasher = FeatureHasher(input_type='string')
     raw_X = [list(k) for k in [key_fn(x) for x in train_set]]
     return hasher.transform(raw_X)
-
-  random.shuffle(train_set)
-  brand_features = ToStringFeatures(lambda x: x.Brand)
-  gtin_features = ToStringFeaturesTokenized(lambda x: x.GTIN)
-
-  X = [x.ToNumericFeatures() for x in train_set]
-  from scipy.sparse import hstack
-  X = hstack([X, brand_features])
-  # X = hstack([X, brand_features, gtin_features])
-  y = [x.result for x in train_set]
-  y = np.asarray(y)
-  from sklearn.preprocessing import normalize
-  X = normalize(X, axis=0)
-  print(X.shape)
-  print(y.shape)
-  # print(cross_val_score(fitter, X, y, cv=10))
-  negative_weights = list([1 if x.result else negative_weight for x in train_set])
-  conf_mat = common.cross_val(X, y, fitter, w=negative_weights, cv=5)
+  #
+  # random.shuffle(train_set)
+  # brand_features = ToStringFeatures(lambda x: x.Brand)
+  # gtin_features = ToStringFeaturesTokenized(lambda x: x.GTIN)
+  #
+  # X = [x.ToNumericFeatures() for x in train_set]
+  # from scipy.sparse import hstack
+  # X = hstack([X, brand_features])
+  # # X = hstack([X, brand_features, gtin_features])
+  # y = [x.result for x in train_set]
+  # y = np.asarray(y)
+  # from sklearn.preprocessing import normalize
+  # X = normalize(X, axis=0)
+  # print(X.shape)
+  # print(y.shape)
+  # # print(cross_val_score(fitter, X, y, cv=10))
+  # negative_weights = list([1 if x.result else negative_weight for x in train_set])
+  conf_mat = common.cross_val(train_set, fitter, negative_weight, cv=5)
   tn = conf_mat.tn
   fn = conf_mat.fn
   tp = conf_mat.tp
@@ -131,17 +126,24 @@ def NNLearnAndEvaluate(train_set):
   #alphas = [1]
   #learning_rate_inits = [0.01, 0.1, 1, 10, 100]
   regularization_types = ['l2']
-  negative_weights = np.arange(start=0.5, step=0.5, stop=4)
+  negative_weights = np.arange(start=0.5, step=0.5, stop=5)
+  alphas = [3, 10, 30, 100]
   dict = {}
-  for layer1, layer2, negative_weight in itertools.product([1], [1], negative_weights):
+  for layer1, layer2, alpha, negative_weight in itertools.product([10], [10], alphas, negative_weights):
+    print("layer1={}, layer2={},negative_weights={},alpha={}".format(layer1, layer2, negative_weight, alpha))
     layers = [layer1, layer2]
     #   Layer(type='Linear', units=layer1),
     #   Layer(type='Rectifier', units=layer2),
     #   Layer(type='Softmax')
     # ]
     batch_size = 50
-    clf = MLPClassifier(hidden_layer_sizes=(layer1, layer2), alpha=10, solver='lbfgs', learning_rate_init=0.1)
-    TrainModelAndEvaluate(train_set, clf)
+    clf = MLPClassifier(hidden_layer_sizes=(layer1, layer2), alpha=alpha, solver='adam',
+                        learning_rate_init=0.001)
+    precision, recall = TrainModelAndEvaluate(train_set, clf, negative_weight = negative_weight)
+    if (precision, recall) != (0, 0):
+      dict[(layer1, layer2, alpha)]= dict.get((layer1, layer2,  alpha), [])
+      dict[(layer1, layer2, alpha)].append((precision, recall))
+  return dict
 
 def GenerateFalses(triplets, number):
   return [random.choice(triplets).ArtificialFalse() for _ in range(number)]
@@ -164,9 +166,9 @@ def partition(pred, iterable):
 @common.timeit
 def main():
   with open('UPI Conf. Score_model data.csv', 'r') as csvfile:
-    triplets = [triplet for triplet in TripletGenerator(csvfile)]
+    triplets = [triplet for triplet in DebletGenerator(csvfile)]
     # triplets = []
-    triplets.extend(list(map_reducer.TripletsFromSqlDump()))
+    triplets.extend(list(map_reducer.DebletsFromSqlDump()))
     triplets = list(RemoveDuplicatesKeepOrder(triplets))
     random.shuffle(triplets)
     TEST_SET_SIZE = len(triplets) // 8
@@ -180,7 +182,7 @@ def main():
 
     # dict = LogisticRegressionLearnAndEvaluate(train_set)
     # dict = SvmLearnAndEvaluate(train_set)
-    dict = SKNNLearnAndEvaluate(train_set)
+    dict = NNLearnAndEvaluate(train_set)
     print(dict)
     print('lines dump for spreadsheet:')
     for key, values in dict.items():

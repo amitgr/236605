@@ -1,7 +1,7 @@
 from random import Random
 
 from sklearn.feature_extraction import FeatureHasher
-from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.model_selection import cross_val_predict
 
 import common
 from common import DebletGenerator
@@ -34,7 +34,7 @@ def TrainModelAndEvaluate(train_set, fitter):
   from sklearn.preprocessing import normalize
   X = normalize(X, axis=0)
   # print(cross_val_score(fitter, X, y, cv=10))
-  predictions = cross_val_predict(fitter, X, y, cv=5)
+  predictions = cross_val_predict(fitter, X, y, cv=5, n_jobs=5)
   confusion_matrix = {}
   for i in range(len(predictions)):
     if not predictions[i]:
@@ -69,7 +69,6 @@ def LogisticRegressionLearnAndEvaluate(train_set):
   c_values = [1000, 300, 100, 30, 10, 3, 1, 0.3, 0.1, 0.03]
   negative_weights = list(np.arange(start=0.1, stop=10, step=0.1)) # + list(np.arange(start=1, stop=4, step=0.25))
   c_values = [10, 100, 300, 1000]
-  regularization = ['l1']
   # negative_weights=[0.5,1]
   dict = {}
   for l, c, negative_weight in itertools.product(regularization, c_values, negative_weights):
@@ -152,7 +151,7 @@ def main():
     #NNLearnAndEvaluate(train_set)
 
     dict = LogisticRegressionLearnAndEvaluate(train_set)
-    dict = SvmLearnAndEvaluate(train_set)
+    # dict = SvmLearnAndEvaluate(train_set)
     print(dict)
     print('lines dump for spreadsheet:')
     for key, values in dict.items():
