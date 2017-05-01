@@ -51,7 +51,7 @@ def TrainModelAndEvaluate(train_set, fitter):
   fn = confusion_matrix.get('fn', 0)
   tp = confusion_matrix.get('tp', 0)
   fp = confusion_matrix.get('fp', 0)
-  if tn + fn < 50:
+  if tn + fn < 20:  # TODO(amitgr): Switch back to 50.
     print('Did not tag enough negative samples, only ', tn + fn)
     return 0, 0
   print('sum True Negatives: ', tn, ' ; sum False Negatives: ', fn, ' ; sum True Positives: ', tp,
@@ -65,7 +65,7 @@ def TrainModelAndEvaluate(train_set, fitter):
 
 def LogisticRegressionLearnAndEvaluate(train_set):
   from sklearn.linear_model import LogisticRegression
-  regularization = ['l1', 'l2']
+  regularization = ['l1']
   c_values = [1000, 300, 100, 30, 10, 3, 1, 0.3, 0.1, 0.03]
   negative_weights = list(np.arange(start=0.1, stop=10, step=0.1)) # + list(np.arange(start=1, stop=4, step=0.25))
   c_values = [10, 100, 300, 1000]
@@ -80,11 +80,29 @@ def LogisticRegressionLearnAndEvaluate(train_set):
       dict[(l, c)].append((precision, recall))
   return dict
 
+def LogisticRegressionTrainSetSizeEvaluation(train_set):
+  from sklearn.linear_model import LogisticRegression
+  regularization = ['l1']
+  negative_weights = list(np.arange(start=0.1, stop=10, step=0.1)) # + list(np.arange(start=1, stop=4, step=0.25))
+  c_values = [10]
+  train_set_sizes = [500, 2500, 10000]
+  # negative_weights=[0.5,1]
+  dict = {}
+  for l, c, train_set_size, negative_weight in itertools.product(regularization, c_values, train_set_sizes, negative_weights):
+    curr_train_set = train_set[:train_set_size]
+    print(l, ': c=', c, ' negative weight=', negative_weight)
+    lr = LogisticRegression(class_weight={True: 1, False: negative_weight}, penalty=l, C=c)
+    precision, recall = TrainModelAndEvaluate(curr_train_set, lr)
+    if (precision, recall) != (0, 0):
+      dict[(l, c, train_set_size)] = dict.get((l, c, train_set_size), [])
+      dict[(l, c, train_set_size)].append((precision, recall))
+  return dict
+
 
 def SvmLearnAndEvaluate(train_set):
   from sklearn import svm
   kernels = ['linear', 'poly', 'rbf', 'sigmoid']
-  kernels = ['poly']
+  kernels = ['rbf']
 
   # first run settings:
   negative_weights = np.arange(start=0.5, stop=4, step=0.5)
@@ -150,7 +168,7 @@ def main():
 
     #NNLearnAndEvaluate(train_set)
 
-    dict = LogisticRegressionLearnAndEvaluate(train_set)
+    dict = LogisticRegressionTrainSetSizeEvaluation(train_set)
     # dict = SvmLearnAndEvaluate(train_set)
     print(dict)
     print('lines dump for spreadsheet:')

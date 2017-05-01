@@ -130,10 +130,10 @@ def NNLearnAndEvaluate(train_set):
   # for amit:
   alphas = [0.1, 0.3, 1, 3]
   # for fagfagal:
-  alphas = [10, 30, 100, 300]
+  alphas.extend([10, 30, 100, 300])
 
   dict = {}
-  for layer1, layer2, alpha, negative_weight in itertools.product([10], [10], alphas, negative_weights):
+  for layer1, layer2, alpha, negative_weight in itertools.product([100], [50], alphas, negative_weights):
     print("layer1={}, layer2={},negative_weights={},alpha={}".format(layer1, layer2, negative_weight, alpha))
     layers = [layer1, layer2]
     #   Layer(type='Linear', units=layer1),
